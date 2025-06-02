@@ -2,10 +2,8 @@ import streamlit as st
 import requests
 from datetime import datetime
 
-# 🌐 OpenWeatherMap API Key
-API_KEY = "9db50c7b28266e83432aa025a772b16b"
+API_KEY = "YOUR_FREE_API_KEY"
 
-# 📍 Coordinates for Indian cities
 city_coords = {
     "Delhi": (28.6139, 77.2090),
     "Mumbai": (19.0760, 72.8777),
@@ -16,56 +14,62 @@ city_coords = {
     "Pune": (18.5204, 73.8567)
 }
 
-# 🎨 Streamlit UI Config
-st.set_page_config(page_title="🌤️ Weather & AQI Monitor", layout="centered", page_icon="☁️")
+st.set_page_config(page_title="🌤️ Weather & AQI", layout="centered", page_icon="☁️")
 st.title("🌤️ Weather & Air Quality Monitor")
-st.markdown("Check the live weather and air pollution for Indian cities.")
 
-# 🔽 Select city
 city = st.selectbox("Choose a city", list(city_coords.keys()))
 lat, lon = city_coords[city]
 
 if st.button("Get Live Weather & AQI"):
-    with st.spinner("Fetching weather data..."):
+    with st.spinner("Fetching data..."):
         try:
-            exclude = "minutely,hourly,alerts"
-            units = "metric"
-            url = f"https://api.openweathermap.org/data/3.0/onecall?lat={lat}&lon={lon}&exclude={exclude}&units={units}&appid={API_KEY}"
-            
-            res = requests.get(url)
-            data = res.json()
+            # ✅ Current Weather (Free)
+            weather_url = f"http://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&units=metric&appid={API_KEY}"
+            weather_res = requests.get(weather_url)
+            weather = weather_res.json()
 
-            # ❌ If error in response
-            if 'current' not in data:
-                st.error("❌ Failed to fetch weather. Please check your API key or usage limits.")
-                st.json(data)
+            if weather_res.status_code != 200:
+                st.error("❌ Failed to fetch weather. Please check your API key or limits.")
+                st.json(weather)
                 st.stop()
 
-            current = data['current']
-            daily = data['daily']
-
-            # 📍 Current Weather
             st.subheader(f"📍 Current Weather in {city}")
-            st.metric("🌡️ Temperature", f"{current['temp']} °C")
-            st.write("📋 Description:", current['weather'][0]['description'].capitalize())
-            st.write("💧 Humidity:", f"{current['humidity']}%")
-            st.write("🌬️ Wind Speed:", f"{current['wind_speed']} m/s")
-            st.write("🌅 Sunrise:", datetime.fromtimestamp(current['sunrise']).strftime("%I:%M %p"))
-            st.write("🌇 Sunset:", datetime.fromtimestamp(current['sunset']).strftime("%I:%M %p"))
+            st.metric("🌡️ Temperature", f"{weather['main']['temp']} °C")
+            st.write("📋 Description:", weather['weather'][0]['description'].capitalize())
+            st.write("💧 Humidity:", f"{weather['main']['humidity']}%")
+            st.write("🌬️ Wind Speed:", f"{weather['wind']['speed']} m/s")
+            st.write("🌅 Sunrise:", datetime.fromtimestamp(weather['sys']['sunrise']).strftime("%I:%M %p"))
+            st.write("🌇 Sunset:", datetime.fromtimestamp(weather['sys']['sunset']).strftime("%I:%M %p"))
 
-            # 📆 7-Day Forecast
-            st.subheader("📆 7-Day Forecast")
-            for day in daily[:7]:
-                date = datetime.fromtimestamp(day['dt']).strftime("%A, %d %b")
-                temp_day = day['temp']['day']
-                temp_night = day['temp']['night']
-                weather = day['weather'][0]['main']
-                desc = day['weather'][0]['description'].capitalize()
+            # ✅ AQI
+            st.subheader("🌫️ Air Quality Index (AQI)")
+            aqi_url = f"http://api.openweathermap.org/data/2.5/air_pollution?lat={lat}&lon={lon}&appid={API_KEY}"
+            aqi_res = requests.get(aqi_url)
+            aqi_data = aqi_res.json()
 
-                st.markdown(f"**{date}**")
-                st.write(f"🌞 Day: {temp_day} °C | 🌙 Night: {temp_night} °C | {weather} ({desc})")
-                st.write("---")
+            if "list" not in aqi_data:
+                st.warning("⚠️ AQI data not available.")
+                st.json(aqi_data)
+            else:
+                air = aqi_data['list'][0]
+                aqi = air['main']['aqi']
+                pollutants = air['components']
+                aqi_levels = {
+                    1: "Good 🟢",
+                    2: "Fair 🟡",
+                    3: "Moderate 🟠",
+                    4: "Poor 🔴",
+                    5: "Very Poor 🔴"
+                }
+
+                st.write("AQI Level:", aqi_levels.get(aqi, "Unknown"))
+                st.write("🧪 PM2.5:", pollutants['pm2_5'], "μg/m³")
+                st.write("🧪 PM10:", pollutants['pm10'], "μg/m³")
+                st.write("🧪 CO:", pollutants['co'], "μg/m³")
+                st.write("🧪 NO₂:", pollutants['no2'], "μg/m³")
+                st.write("🧪 O₃:", pollutants['o3'], "μg/m³")
+                st.write("🧪 SO₂:", pollutants['so2'], "μg/m³")
 
         except Exception as e:
-            st.error("Something went wrong!")
+            st.error("⚠️ Something went wrong.")
             st.exception(e)
