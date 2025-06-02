@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 from datetime import datetime
 
-API_KEY = "YOUR_FREE_API_KEY"
+API_KEY = "bcbb60c7dbd12fcf01754ed47775153e"
 
 city_coords = {
     "Delhi": (28.6139, 77.2090),
