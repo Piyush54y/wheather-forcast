@@ -1,65 +1,80 @@
 import streamlit as st
 import requests
+from datetime import datetime
+import pytz
 
-API_KEY = "f4d95ef455bf4ada8f982321250306"
+API_KEY = "bcbb60c7dbd12fcf01754ed47775153e"
 
 city_coords = {
-    "Delhi": "Delhi",
-    "Mumbai": "Mumbai",
-    "Kolkata": "Kolkata",
-    "Bangalore": "Bangalore",
-    "Chennai": "Chennai",
-    "Hyderabad": "Hyderabad",
-    "Pune": "Pune"
+    "Delhi": (28.6139, 77.2090),
+    "Mumbai": (19.0760, 72.8777),
+    "Kolkata": (22.5726, 88.3639),
+    "Bangalore": (12.9716, 77.5946),
+    "Chennai": (13.0827, 80.2707),
+    "Hyderabad": (17.3850, 78.4867),
+    "Pune": (18.5204, 73.8567)
 }
 
 st.set_page_config(page_title="🌤️ Weather & AQI", layout="centered", page_icon="☁️")
-st.title("🌤️ Weather & Air Quality Monitor")
+st.title("🌤️ Live Weather & Air Quality")
 
 city = st.selectbox("Choose a city", list(city_coords.keys()))
-location = city_coords[city]
+lat, lon = city_coords[city]
 
 if st.button("Get Live Weather & AQI"):
-    with st.spinner("Fetching data..."):
+    with st.spinner("Fetching live data..."):
         try:
-            url = f"http://api.weatherapi.com/v1/current.json?key={API_KEY}&q={location}&aqi=yes"
-            response = requests.get(url)
-            data = response.json()
+            # ✅ Real-time Weather
+            weather_url = f"http://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&units=metric&appid={API_KEY}"
+            weather_res = requests.get(weather_url)
+            weather = weather_res.json()
 
-            if response.status_code != 200 or "error" in data:
-                st.error("❌ Failed to fetch weather. Please check your API key or limits.")
-                st.json(data)
+            if weather_res.status_code != 200:
+                st.error("❌ Failed to fetch weather data.")
+                st.json(weather)
                 st.stop()
 
-            current = data['current']
-            location_data = data['location']
+            ist = pytz.timezone("Asia/Kolkata")
+            sunrise_time = datetime.fromtimestamp(weather['sys']['sunrise'], tz=pytz.utc).astimezone(ist).strftime("%I:%M %p")
+            sunset_time = datetime.fromtimestamp(weather['sys']['sunset'], tz=pytz.utc).astimezone(ist).strftime("%I:%M %p")
 
-            # Display location and local time
-            st.subheader(f"📍 Current Weather in {location_data['name']}, {location_data['region']}, {location_data['country']}")
-            st.write(f"🕒 Local Time: {location_data['localtime']}")
+            st.subheader(f"📍 Current Weather in {city}")
+            st.metric("🌡️ Temperature", f"{weather['main']['temp']} °C")
+            st.write("📋 Description:", weather['weather'][0]['description'].capitalize())
+            st.write("💧 Humidity:", f"{weather['main']['humidity']}%")
+            st.write("🌬️ Wind Speed:", f"{weather['wind']['speed']} m/s")
+            st.write("🌅 Sunrise:", sunrise_time)
+            st.write("🌇 Sunset:", sunset_time)
 
-            # Real-time temperature and condition
-            st.metric("🌡️ Temperature", f"{current['temp_c']} °C")
-            st.write("📋 Condition:", current['condition']['text'])
-            st.write("💧 Humidity:", f"{current['humidity']}%")
-            st.write("🌬️ Wind Speed:", f"{current['wind_kph']} kph")
-
-            # Note: Sunrise is not in current endpoint, you need forecast API for that
-            st.info("🌅 Sunrise/Sunset data is available in forecast API, not current API.")
-
-            # Air Quality Index data
+            # ✅ Air Quality
             st.subheader("🌫️ Air Quality Index (AQI)")
-            if 'air_quality' in current:
-                aqi = current['air_quality']
-                st.write("🧪 PM2.5:", round(aqi['pm2_5'], 2), "μg/m³")
-                st.write("🧪 PM10:", round(aqi['pm10'], 2), "μg/m³")
-                st.write("🧪 CO:", round(aqi['co'], 2), "μg/m³")
-                st.write("🧪 NO₂:", round(aqi['no2'], 2), "μg/m³")
-                st.write("🧪 O₃:", round(aqi['o3'], 2), "μg/m³")
-                st.write("🧪 SO₂:", round(aqi['so2'], 2), "μg/m³")
+            aqi_url = f"http://api.openweathermap.org/data/2.5/air_pollution?lat={lat}&lon={lon}&appid={API_KEY}"
+            aqi_res = requests.get(aqi_url)
+            aqi_data = aqi_res.json()
+
+            if "list" not in aqi_data:
+                st.warning("⚠️ AQI data not available.")
+                st.json(aqi_data)
             else:
-                st.warning("⚠️ AQI data not available for this location.")
+                air = aqi_data['list'][0]
+                aqi = air['main']['aqi']
+                pollutants = air['components']
+                aqi_levels = {
+                    1: "Good 🟢",
+                    2: "Fair 🟡",
+                    3: "Moderate 🟠",
+                    4: "Poor 🔴",
+                    5: "Very Poor 🔴"
+                }
+
+                st.write("AQI Level:", aqi_levels.get(aqi, "Unknown"))
+                st.write("🧪 PM2.5:", pollutants['pm2_5'], "μg/m³")
+                st.write("🧪 PM10:", pollutants['pm10'], "μg/m³")
+                st.write("🧪 CO:", pollutants['co'], "μg/m³")
+                st.write("🧪 NO₂:", pollutants['no2'], "μg/m³")
+                st.write("🧪 O₃:", pollutants['o3'], "μg/m³")
+                st.write("🧪 SO₂:", pollutants['so2'], "μg/m³")
 
         except Exception as e:
-            st.error("⚠️ Something went wrong.")
+            st.error("⚠️ Something went wrong while fetching data.")
             st.exception(e)
