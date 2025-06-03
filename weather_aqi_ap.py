@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 from datetime import datetime
+import pytz
 
 API_KEY = "bcbb60c7dbd12fcf01754ed47775153e"
 
@@ -15,33 +16,37 @@ city_coords = {
 }
 
 st.set_page_config(page_title="🌤️ Weather & AQI", layout="centered", page_icon="☁️")
-st.title("🌤️ Weather & Air Quality Monitor")
+st.title("🌤️ Live Weather & Air Quality")
 
 city = st.selectbox("Choose a city", list(city_coords.keys()))
 lat, lon = city_coords[city]
 
 if st.button("Get Live Weather & AQI"):
-    with st.spinner("Fetching data..."):
+    with st.spinner("Fetching live data..."):
         try:
-            # ✅ Current Weather (Free)
+            # ✅ Real-time Weather
             weather_url = f"http://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&units=metric&appid={API_KEY}"
             weather_res = requests.get(weather_url)
             weather = weather_res.json()
 
             if weather_res.status_code != 200:
-                st.error("❌ Failed to fetch weather. Please check your API key or limits.")
+                st.error("❌ Failed to fetch weather data.")
                 st.json(weather)
                 st.stop()
+
+            ist = pytz.timezone("Asia/Kolkata")
+            sunrise_time = datetime.fromtimestamp(weather['sys']['sunrise'], tz=pytz.utc).astimezone(ist).strftime("%I:%M %p")
+            sunset_time = datetime.fromtimestamp(weather['sys']['sunset'], tz=pytz.utc).astimezone(ist).strftime("%I:%M %p")
 
             st.subheader(f"📍 Current Weather in {city}")
             st.metric("🌡️ Temperature", f"{weather['main']['temp']} °C")
             st.write("📋 Description:", weather['weather'][0]['description'].capitalize())
             st.write("💧 Humidity:", f"{weather['main']['humidity']}%")
             st.write("🌬️ Wind Speed:", f"{weather['wind']['speed']} m/s")
-            st.write("🌅 Sunrise:", datetime.fromtimestamp(weather['sys']['sunrise']).strftime("%I:%M %p"))
-            st.write("🌇 Sunset:", datetime.fromtimestamp(weather['sys']['sunset']).strftime("%I:%M %p"))
+            st.write("🌅 Sunrise:", sunrise_time)
+            st.write("🌇 Sunset:", sunset_time)
 
-            # ✅ AQI
+            # ✅ Air Quality
             st.subheader("🌫️ Air Quality Index (AQI)")
             aqi_url = f"http://api.openweathermap.org/data/2.5/air_pollution?lat={lat}&lon={lon}&appid={API_KEY}"
             aqi_res = requests.get(aqi_url)
@@ -71,5 +76,5 @@ if st.button("Get Live Weather & AQI"):
                 st.write("🧪 SO₂:", pollutants['so2'], "μg/m³")
 
         except Exception as e:
-            st.error("⚠️ Something went wrong.")
+            st.error("⚠️ Something went wrong while fetching data.")
             st.exception(e)
