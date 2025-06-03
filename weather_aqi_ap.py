@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-from datetime import datetime
 
 API_KEY = "f4d95ef455bf4ada8f982321250306"
 
@@ -23,7 +22,6 @@ location = city_coords[city]
 if st.button("Get Live Weather & AQI"):
     with st.spinner("Fetching data..."):
         try:
-            # ✅ WeatherAPI endpoint
             url = f"http://api.weatherapi.com/v1/current.json?key={API_KEY}&q={location}&aqi=yes"
             response = requests.get(url)
             data = response.json()
@@ -33,18 +31,23 @@ if st.button("Get Live Weather & AQI"):
                 st.json(data)
                 st.stop()
 
-            # ✅ Weather Details
-            st.subheader(f"📍 Current Weather in {location}")
             current = data['current']
             location_data = data['location']
+
+            # Display location and local time
+            st.subheader(f"📍 Current Weather in {location_data['name']}, {location_data['region']}, {location_data['country']}")
+            st.write(f"🕒 Local Time: {location_data['localtime']}")
+
+            # Real-time temperature and condition
             st.metric("🌡️ Temperature", f"{current['temp_c']} °C")
             st.write("📋 Condition:", current['condition']['text'])
             st.write("💧 Humidity:", f"{current['humidity']}%")
             st.write("🌬️ Wind Speed:", f"{current['wind_kph']} kph")
-            st.write("🌅 Sunrise:", location_data.get('localtime', 'N/A').split()[1])
-            st.write("🕒 Last Updated:", current['last_updated'])
 
-            # ✅ AQI (Only PM2.5 and PM10 supported)
+            # Note: Sunrise is not in current endpoint, you need forecast API for that
+            st.info("🌅 Sunrise/Sunset data is available in forecast API, not current API.")
+
+            # Air Quality Index data
             st.subheader("🌫️ Air Quality Index (AQI)")
             if 'air_quality' in current:
                 aqi = current['air_quality']
