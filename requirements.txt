@@ -1,0 +1,33 @@
+requirements
+for wheather reports I use free api key from openwheather.com
+2. ngrox for hosting
+3.git hub for repo
+4.stramlit for deploy
+5 google collab also for easy run
+
+run commands in collab
+
+1.
+
+!pip install streamlit pyngrok
+!streamlit run weather_aqi_app.py & npx localtunnel --port 8501
+
+
+2.
+
+ !pip install streamlit pyngrok -q
+from pyngrok import ngrok
+
+# Save your app
+with open("app.py", "w") as f:
+    f.write(open("your_final_app_path.py").read())
+
+# Set your ngrok auth token
+ngrok.set_auth_token("2xwPV2YDmc7yu3EOKq70C69oSyp_3tACDwQd7ckr5qwfmcrUN")
+
+# Kill previous sessions
+!pkill streamlit
+
+# Run and expose app
+get_ipython().system_raw('streamlit run app.py &')
+print(ngrok.connect(8501))
